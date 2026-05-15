@@ -48,51 +48,41 @@ async function main() {
         `[INFO] Página ${page} obtenida con éxito (${results.length} WoBs encontradas). Procesando...`,
       );
 
+      let newWobsInPage = 0;
+
       for (const entry of results) {
         const coppermindId = entry.id;
         const eventId = entry.event;
         const sourceUrl = `https://wob.coppermind.net/events/${eventId}/#e${coppermindId}`;
         const entryTags = entry.tags || [];
 
-        console.log(`  -> Procesando WoB #${coppermindId} (Evento ${eventId})...`);
+        console.log(`  -> Chequeando WoB #${coppermindId} (Evento ${eventId})...`);
 
         let existingWob = await db
           .select()
           .from(wob)
           .where(eq(wob.coppermindId, coppermindId))
           .limit(1);
-        let currentWobId: string;
 
         if (existingWob.length > 0) {
-          console.log(`    [!] La WoB #${coppermindId} ya existe en DB. Actualizando contenido...`);
-          const updated = await db
-            .update(wob)
-            .set({
-              eventId,
-              data: entry.lines,
-              note: entry.note || null,
-              sourceUrl,
-              date: entry.date ? new Date(entry.date) : null,
-              updatedAt: new Date(),
-            })
-            .where(eq(wob.coppermindId, coppermindId))
-            .returning();
-          currentWobId = updated[0].id;
-        } else {
-          console.log(`    [+] Insertando nueva WoB #${coppermindId}...`);
-          const inserted = await db
-            .insert(wob)
-            .values({
-              coppermindId,
-              eventId,
-              data: entry.lines,
-              note: entry.note || null,
-              sourceUrl,
-              date: entry.date ? new Date(entry.date) : null,
-            })
-            .returning();
-          currentWobId = inserted[0].id;
+          console.log(`    [!] La WoB #${coppermindId} ya existe. Omitiendo...`);
+          continue;
         }
+
+        newWobsInPage++;
+        console.log(`    [+] Insertando nueva WoB #${coppermindId}...`);
+        const inserted = await db
+          .insert(wob)
+          .values({
+            coppermindId,
+            eventId,
+            data: entry.lines,
+            note: entry.note || null,
+            sourceUrl,
+            date: entry.date ? new Date(entry.date) : null,
+          })
+          .returning();
+        let currentWobId = inserted[0].id;
 
         // 2. Procesar e insertar los Tags
         if (entryTags.length > 0) {
@@ -123,6 +113,11 @@ async function main() {
           }
           console.log(`    [+] Se asociaron ${entryTags.length} tags a la WoB #${coppermindId}.`);
         }
+      }
+
+      if (newWobsInPage === 0) {
+        console.log(`[INFO] No se encontraron WoBs nuevas en la página ${page}. El bot está al día. Finalizando update.`);
+        break;
       }
 
       if (!data.next) {
