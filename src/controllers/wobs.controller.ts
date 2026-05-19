@@ -21,6 +21,7 @@ export const searchSchema = z
     query: z.string().min(1).max(255),
     page: z.coerce.number().int().min(1).default(1),
     perPage: z.coerce.number().int().min(1).max(25).default(10),
+    caseSensitive: z.string(),
     afterDate: dateStringSchema.optional(),
     beforeDate: dateStringSchema.optional(),
   })
@@ -91,7 +92,8 @@ export const search = async (req: Request, res: Response) => {
   try {
     const validatedData = searchSchema.parse(req.query);
 
-    const { query, page, perPage, afterDate, beforeDate } = validatedData;
+    const { query, page, perPage, afterDate, beforeDate, caseSensitive } = validatedData;
+    const boolCaseSensitive = Boolean(caseSensitive);
 
     const { total, results } = await searchWobs({
       query,
@@ -99,6 +101,7 @@ export const search = async (req: Request, res: Response) => {
       perPage,
       afterDate,
       beforeDate,
+      boolCaseSensitive,
     });
 
     res.status(200).json({

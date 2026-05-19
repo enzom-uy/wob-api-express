@@ -6,6 +6,7 @@ interface SearchParams {
   query: string;
   page: number;
   perPage: number;
+  boolCaseSensitive: boolean;
   afterDate?: Date;
   beforeDate?: Date;
 }
@@ -15,15 +16,25 @@ interface RandomParams {
   beforeDate?: Date;
 }
 
-export const searchWobs = async ({ query, page, perPage, afterDate, beforeDate }: SearchParams) => {
+export const searchWobs = async ({
+  query,
+  page,
+  perPage,
+  afterDate,
+  beforeDate,
+  boolCaseSensitive,
+}: SearchParams) => {
   const offset = (page - 1) * perPage;
 
   const dateFilters = [];
   if (afterDate) dateFilters.push(gt(wob.date, afterDate));
   if (beforeDate) dateFilters.push(lt(wob.date, beforeDate));
 
+  const operator = boolCaseSensitive === true ? 'LIKE' : 'ILIKE';
+  console.log(operator);
+
   const searchCondition = or(
-    sql`${wob.data}::text ILIKE ${'%' + query + '%'}`,
+    sql`${wob.data}::text ${sql.raw(operator)} ${'%' + query + '%'}`,
     sql`EXISTS (
       SELECT 1 FROM ${wobTags} wt
       JOIN ${tags} t ON wt.tag_id = t.id
