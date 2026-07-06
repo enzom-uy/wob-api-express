@@ -4,4 +4,5 @@ dist
 .env.local
 .DS_Store
 # ai
+# private-docs
 private-docs

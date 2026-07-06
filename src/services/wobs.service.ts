@@ -2,11 +2,10 @@ import { db } from '../db/db';
 import { wob, tags, wobTags } from '../db/schema';
 import { sql, desc, count, gt, lt, and, or, eq } from 'drizzle-orm';
 
-interface SearchParams {
+export interface SearchParams {
   query: string;
   page: number;
   perPage: number;
-  boolCaseSensitive: boolean;
   afterDate?: Date;
   beforeDate?: Date;
 }
@@ -22,7 +21,6 @@ export const searchWobs = async ({
   perPage,
   afterDate,
   beforeDate,
-  boolCaseSensitive,
 }: SearchParams) => {
   const offset = (page - 1) * perPage;
 
@@ -30,15 +28,12 @@ export const searchWobs = async ({
   if (afterDate) dateFilters.push(gt(wob.date, afterDate));
   if (beforeDate) dateFilters.push(lt(wob.date, beforeDate));
 
-  const operator = boolCaseSensitive === true ? 'LIKE' : 'ILIKE';
-  console.log(operator);
-
   const searchCondition = or(
-    sql`${wob.data}::text ${sql.raw(operator)} ${'%' + query + '%'}`,
+    sql`${wob.data}::text LIKE ${'%' + query + '%'}`,
     sql`EXISTS (
       SELECT 1 FROM ${wobTags} wt
       JOIN ${tags} t ON wt.tag_id = t.id
-      WHERE wt.wob_id = ${wob.id} AND t.name ILIKE ${'%' + query + '%'}
+      WHERE wt.wob_id = ${wob.id} AND t.name LIKE ${'%' + query + '%'}
     )`,
   );
 
